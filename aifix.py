@@ -11,28 +11,37 @@ Runs entirely against a local Ollama server — no API key, no rate limits.
 
 Env knobs:
   OLLAMA_URL     default http://host.docker.internal:11434
-  AIFIX_MODEL    default qwen2.5vl:7b
+  AIFIX_MODEL    default qwen3-vl:30b
   AIFIX_DPI      default 150
   AIFIX_MAXPAGES default 0 (0 = all pages; set e.g. 6 for a quick test)
 """
-import os, re, glob, json, time, base64, subprocess, urllib.request
+import os, re, glob, json, time, base64, hashlib, subprocess, urllib.request
 import pdf2epub as P
 
 WORK   = "/work"
 OLLAMA = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434")
-MODEL  = os.environ.get("AIFIX_MODEL", "qwen2.5vl:7b")
+MODEL  = os.environ.get("AIFIX_MODEL", "qwen3-vl:30b")
 DPI    = os.environ.get("AIFIX_DPI", "150")
 MAXP   = int(os.environ.get("AIFIX_MAXPAGES", "0"))
 CACHE  = os.path.join(WORK, ".aifix")
 
-PROMPT_HEAD = """You are given a scanned page from a printed novel: an image of the page and the raw OCR text extracted from it. The OCR text contains recognition errors.
+PROMPT_HEAD = """You are given a scanned page from a printed book: the page image and the raw OCR text extracted from it. The OCR text has recognition errors AND broken line/paragraph structure.
 
-Output the corrected text of the page, using the IMAGE as the source of truth.
+Using the IMAGE as the source of truth, output the corrected, properly-formatted text of the page.
 
-Rules:
-- Fix OCR errors only: wrong letters (e.g. "cotumn" -> "column"), split or merged words (e.g. "golame" -> "go lame"), garbled punctuation and quotation marks, mis-recognized characters.
-- Preserve the author's exact wording. Do NOT paraphrase, summarize, translate, modernize, or rewrite. Correct recognition errors only.
-- Reconstruct paragraphs: join lines that OCR hard-wrapped into continuous paragraphs, and separate distinct paragraphs with a BLANK line. Keep dialogue and paragraph breaks as printed.
+Fix OCR errors:
+- Wrong letters (e.g. "cotumn" -> "column"), split or merged words (e.g. "golame" -> "go lame"), garbled punctuation and quotation marks, mis-recognized characters.
+- Preserve the author's exact wording. Do NOT paraphrase, summarize, translate, modernize, or rewrite — correct recognition errors only.
+
+Fix line and paragraph breaks (important):
+- Reflow the text into proper paragraphs. Join lines that were hard-wrapped mid-paragraph into one continuous line; remove the line breaks WITHIN a paragraph.
+- Use the page image to decide where paragraphs truly begin — a new paragraph is shown by an indented first line or extra vertical spacing. Start a new paragraph only at those real boundaries.
+- In dialogue, each new speaker's turn is normally its own paragraph.
+- Output each paragraph as a single line with no internal breaks, and separate paragraphs with exactly one blank line.
+- Remove stray breaks or blank lines that wrongly split one paragraph; merge a paragraph the OCR split across a column or page break.
+- Re-join words hyphenated across a line break (e.g. "exam-" / "ple" -> "example").
+
+Other:
 - Keep chapter headings / titles / section markers (e.g. "Chapter 5", "Prologue") on their own line.
 - Omit running page headers/footers (a repeated book title) and standalone page numbers.
 - Output ONLY the page's text. No commentary, notes, labels, or markup.
@@ -42,6 +51,7 @@ Raw OCR text:
 <<<
 """
 PROMPT_TAIL = "\n>>>\n"
+PROMPT_HASH = hashlib.sha1((PROMPT_HEAD + PROMPT_TAIL).encode()).hexdigest()[:8]
 
 
 def run(cmd):
@@ -102,7 +112,7 @@ def ollama_generate(prompt, image_b64, retries=5):
 
 
 def correct_page(path, stem, n):
-    cdir = os.path.join(CACHE, stem, MODEL.replace(":", "_").replace("/", "_"))
+    cdir = os.path.join(CACHE, stem, MODEL.replace(":", "_").replace("/", "_"), PROMPT_HASH)
     os.makedirs(cdir, exist_ok=True)
     cfile = os.path.join(cdir, "p%04d.txt" % n)
     if os.path.exists(cfile):
