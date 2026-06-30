@@ -1,0 +1,17 @@
+# Books and outputs — never commit copyrighted material
+*.pdf
+*.epub
+
+# Resumable vision cache
+.aifix/
+
+# OCR intermediates
+*.ocr.pdf
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
