@@ -22,7 +22,7 @@ PDF ──▶ plain pass (pdf2epub.py) ─────────────�
    `ocrmypdf`. Identical books (same text) are de-duplicated.
 2. **Vision pass** — renders each page to an image with `pdftoppm` and sends the
    image **plus** the raw OCR text to a vision model (default
-   [`qwen3-vl:30b`](https://ollama.com/library/qwen3-vl)) with a strict prompt:
+   [`qwen2.5vl:7b`](https://ollama.com/library/qwen2.5vl)) with a strict prompt:
    fix OCR errors without paraphrasing, **and reflow the broken OCR line/paragraph
    breaks into proper paragraphs** using the page layout. Corrected pages are
    cached to `.aifix/` (resumable — a re-run skips finished pages), then rebuilt
@@ -96,7 +96,7 @@ Outputs land next to the PDFs:
 | Flag / env var      | Default                     | Purpose |
 |---------------------|-----------------------------|---------|
 | `--no-ai`           | (off)                       | Run only the plain pass — no GPU/Ollama needed. |
-| `AIFIX_MODEL`       | `qwen3-vl:30b`             | Ollama vision model. The default (Qwen3-VL 30B-A3B MoE, ~20 GB) is the speed/quality sweet spot. Use `qwen3-vl:8b` (~6 GB) for less VRAM, or `qwen3-vl:32b` (~21 GB) for max quality. |
+| `AIFIX_MODEL`       | `qwen2.5vl:7b`             | Ollama vision model — must be **non-thinking** (see note below). Default `qwen2.5vl:7b` (~6 GB) is the speed/quality sweet spot; `qwen2.5vl:32b` (~22 GB) for max fidelity (~4× slower). |
 | `AIFIX_DPI`         | `150`                       | Page render DPI for the vision pass. |
 | `AIFIX_MAXPAGES`    | `0` (all)                   | Cap pages per book — handy for a quick test (e.g. `6`). |
 | `OLLAMA_URL`        | `http://127.0.0.1:11434`    | Point at an external Ollama instead of the in-container one. |
@@ -107,7 +107,7 @@ docker run --rm -v "${PWD}:/work" pdf2epub-ai --no-ai
 
 # Example: max-quality model, test on the first 6 pages
 docker run --rm --gpus all -v "${PWD}:/work" -v ollama:/root/.ollama `
-  -e AIFIX_MODEL=qwen3-vl:32b -e AIFIX_MAXPAGES=6 pdf2epub-ai
+  -e AIFIX_MODEL=qwen2.5vl:32b -e AIFIX_MAXPAGES=6 pdf2epub-ai
 ```
 
 ## Notes
@@ -117,8 +117,12 @@ docker run --rm --gpus all -v "${PWD}:/work" -v ollama:/root/.ollama `
   prompt starts a fresh cache, so you can compare without losing prior results.
 - **Quality.** The vision model fixes OCR characters faithfully and reflows the
   text into proper paragraphs, without rewriting the prose.
-- **GPU memory.** The default `qwen3-vl:30b` needs ~20 GB VRAM and loads fully on
-  a 24 GB+ card with no CPU overspill. On smaller GPUs use `qwen3-vl:8b` (~6 GB).
+- **Use a non-thinking model.** `qwen3-vl` on Ollama is a *thinking-only* model
+  (no instruct tag, `think:false` not honored): it spends the whole token budget
+  reasoning and returns empty output, so it doesn't work here. Stick to the
+  Qwen2.5-VL family (`qwen2.5vl:7b` / `:32b`).
+- **GPU memory.** `qwen2.5vl:7b` needs ~6 GB; `qwen2.5vl:32b` ~22 GB (fits a 32 GB
+  card at 100% GPU, no CPU overspill).
 - **No book files in this repo.** `.gitignore` excludes all `*.pdf`, `*.epub`,
   and the cache — only the tool ships here.
 

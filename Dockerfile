@@ -19,7 +19,7 @@ COPY pdf2epub.py aifix.py run.py /app/
 # Ollama listens in-container; aifix talks to it on localhost.
 ENV OLLAMA_HOST=0.0.0.0:11434 \
     OLLAMA_URL=http://127.0.0.1:11434 \
-    AIFIX_MODEL=qwen3-vl:30b \
+    AIFIX_MODEL=qwen2.5vl:7b \
     AIFIX_DPI=150
 
 WORKDIR /work

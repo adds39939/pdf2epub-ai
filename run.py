@@ -24,7 +24,7 @@ import pdf2epub          # noqa: E402
 import aifix             # noqa: E402
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
-MODEL      = os.environ.get("AIFIX_MODEL", "qwen3-vl:30b")
+MODEL      = os.environ.get("AIFIX_MODEL", "qwen2.5vl:7b")
 SERVE_ENV  = dict(os.environ, OLLAMA_HOST=os.environ.get("OLLAMA_HOST", "0.0.0.0:11434"))
 
 

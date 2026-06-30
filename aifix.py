@@ -11,7 +11,7 @@ Runs entirely against a local Ollama server — no API key, no rate limits.
 
 Env knobs:
   OLLAMA_URL     default http://host.docker.internal:11434
-  AIFIX_MODEL    default qwen3-vl:30b
+  AIFIX_MODEL    default qwen2.5vl:7b  (qwen3-vl is thinking-only -> unusable)
   AIFIX_DPI      default 150
   AIFIX_MAXPAGES default 0 (0 = all pages; set e.g. 6 for a quick test)
 """
@@ -20,7 +20,7 @@ import pdf2epub as P
 
 WORK   = "/work"
 OLLAMA = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434")
-MODEL  = os.environ.get("AIFIX_MODEL", "qwen3-vl:30b")
+MODEL  = os.environ.get("AIFIX_MODEL", "qwen2.5vl:7b")
 DPI    = os.environ.get("AIFIX_DPI", "150")
 MAXP   = int(os.environ.get("AIFIX_MAXPAGES", "0"))
 CACHE  = os.path.join(WORK, ".aifix")
